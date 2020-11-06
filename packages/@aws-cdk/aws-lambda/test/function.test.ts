@@ -5,6 +5,7 @@ import { ProfilingGroup } from '@aws-cdk/aws-codeguruprofiler';
 import * as ec2 from '@aws-cdk/aws-ec2';
 import * as efs from '@aws-cdk/aws-efs';
 import * as iam from '@aws-cdk/aws-iam';
+import * as kms from '@aws-cdk/aws-kms';
 import * as logs from '@aws-cdk/aws-logs';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as sqs from '@aws-cdk/aws-sqs';
@@ -1784,6 +1785,35 @@ describe('function', () => {
       });
     });
   });
+
+  test('default function with KMS key', () => {
+    const stack = new cdk.Stack();
+
+    const kmsKeyLambda = new kms.Key(stack, 'LambdaKmsKey')
+
+    new lambda.Function(stack, 'MyLambda', {
+      code: new lambda.InlineCode('foo'),
+      handler: 'index.handler',
+      runtime: lambda.Runtime.NODEJS_10_X,
+      kmsKey: kmsKeyLambda,
+    });
+
+    expect(stack).toHaveResource('AWS::Lambda::Function', {
+      Code: {
+        ZipFile: 'foo',
+      },
+      Handler: 'index.handler',
+      Role: {
+        'Fn::GetAtt': [
+          'MyLambdaServiceRole4539ECB6',
+          'Arn',
+        ],
+      },
+      Runtime: 'nodejs10.x',
+      KmsKeyArn: kmsKeyLambda.keyArn,
+    });
+  });
+
 });
 
 function newTestLambda(scope: constructs.Construct) {

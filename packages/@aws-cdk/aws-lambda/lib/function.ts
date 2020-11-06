@@ -4,6 +4,7 @@ import * as ec2 from '@aws-cdk/aws-ec2';
 import * as iam from '@aws-cdk/aws-iam';
 import * as logs from '@aws-cdk/aws-logs';
 import * as sqs from '@aws-cdk/aws-sqs';
+import * as kms from '@aws-cdk/aws-kms';
 import { Annotations, CfnResource, Duration, Fn, Lazy, Names, Stack } from '@aws-cdk/core';
 import { Construct } from 'constructs';
 import { Code, CodeConfig } from './code';
@@ -17,6 +18,7 @@ import { CfnFunction } from './lambda.generated';
 import { ILayerVersion } from './layers';
 import { LogRetentionRetryOptions } from './log-retention';
 import { Runtime } from './runtime';
+
 
 /**
  * X-Ray Tracing Modes (https://docs.aws.amazon.com/lambda/latest/dg/API_TracingConfig.html)
@@ -281,6 +283,14 @@ export interface FunctionOptions extends EventInvokeConfigOptions {
    * @default false
    */
   readonly allowPublicSubnet?: boolean;
+
+  /**
+   * The KMS key that is going to be used to encrypt the environment variables.
+   * @see https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html#configuration-envvars-encryption
+   *
+   * @default - will not encrypt environment variables
+   */
+  readonly kmsKey?: kms.IKey;
 }
 
 export interface FunctionProps extends FunctionOptions {
@@ -610,6 +620,7 @@ export class Function extends FunctionBase {
       deadLetterConfig: this.buildDeadLetterConfig(this.deadLetterQueue),
       tracingConfig: this.buildTracingConfig(props),
       reservedConcurrentExecutions: props.reservedConcurrentExecutions,
+      kmsKeyArn: props.kmsKey && props.kmsKey.keyArn,
     });
 
     resource.node.addDependency(this.role);
